@@ -1,0 +1,42 @@
+version: '3'
+
+services:
+  barber-service:
+    build:
+      context: ./barber
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    networks:
+      - barbershop-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  client-service:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    networks:
+      - barbershop-network
+    environment:
+      - BARBER_SERVICE_HOST=barber-service
+      - BARBER_SERVICE_PORT=5000
+    depends_on:
+      - barber-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  barbershop-network:

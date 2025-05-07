@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ошибка подключения</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #dc3545;
+        }
+        .error-box {
+            border: 1px solid #f8d7da;
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Ошибка подключения к сервису парикмахеров</h1>
+
+    <div class="error-box">
+        <p><strong>Детали ошибки:</strong> {{ error }}</p>
+        <p><strong>URL сервиса:</strong> {{ service_url }}</p>
+    </div>
+
+    <p>Возможные причины:</p>
+    <ul>
+        <li>Сервис парикмахеров не запущен</li>
+        <li>Проблемы с сетевым подключением</li>
+        <li>Неправильно настроены переменные окружения</li>
+    </ul>
+
+    <p>Попробуйте обновить страницу через некоторое время.</p>
+
+    <a href="/" class="button">Обновить страницу</a>
+</body>
+</html>

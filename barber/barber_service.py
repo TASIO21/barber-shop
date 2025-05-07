@@ -1,10 +1,10 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, jsonify, request
 import threading
 import time
 import random
 import queue
-import socket
 import logging
+import socket
 
 app = Flask(__name__)
 
@@ -55,7 +55,7 @@ class Barber:
     def finish_haircut(self):
         customer_id = self.customer.id
         self.customer = None
-        self.event.clear()
+        self.status = "sleeping"  # Сразу переводим в режим сна после стрижки
         logger.info(f"Парикмахер {self.id} закончил стрижку клиента {customer_id}")
         return customer_id
 
@@ -74,37 +74,39 @@ def barber_work(barber_id):
     barber = barbers[barber_id]
 
     while simulation_running:
-        if waiting_room.empty() and barber.status != "cutting":
+        # Проверяем, есть ли клиенты в очереди
+        if not waiting_room.empty() or barber.status == "cutting":
+            if barber.status == "sleeping" and not waiting_room.empty():
+                try:
+                    customer = waiting_room.get_nowait()
+                    with barber_locks[barber_id]:
+                        barber.wake_up(customer)
+                    customer.set_status("getting_haircut")
+
+                    # Имитация стрижки
+                    haircut_time = random.uniform(1, 5)  # Время стрижки 1-5 секунд
+                    time.sleep(haircut_time)
+
+                    # Завершение стрижки
+                    with barber_locks[barber_id]:
+                        finished_customer_id = barber.finish_haircut()
+                    customer.set_status("done")
+
+                    # Обновляем количество обслуженных клиентов
+                    with simulation_lock:
+                        customers_served += 1
+
+                    logger.info(f"Клиент {finished_customer_id} пострижен и уходит")
+                except queue.Empty:
+                    pass  # Кто-то другой взял клиента
+        else:
+            # Если нет клиентов, парикмахер спит
             with barber_locks[barber_id]:
-                barber.sleep()
-            barber.event.wait(1)  # Ждем клиента
-            continue
+                if barber.status != "sleeping":
+                    barber.sleep()
+            time.sleep(0.5)  # Небольшая задержка между проверками
 
-        if barber.status == "sleeping" and not waiting_room.empty():
-            try:
-                customer = waiting_room.get_nowait()
-                with barber_locks[barber_id]:
-                    barber.wake_up(customer)
-                customer.set_status("getting_haircut")
-
-                # Имитация стрижки
-                haircut_time = random.uniform(1, 5)  # Время стрижки 1-5 секунд
-                time.sleep(haircut_time)
-
-                # Завершение стрижки
-                with barber_locks[barber_id]:
-                    finished_customer_id = barber.finish_haircut()
-                customer.set_status("done")
-
-                # Обновляем количество обслуженных клиентов
-                with simulation_lock:
-                    customers_served += 1
-
-                logger.info(f"Клиент {finished_customer_id} пострижен и уходит")
-            except queue.Empty:
-                pass  # Кто-то другой взял клиента
-        time.sleep(0.1)  # Небольшая задержка
-
+        time.sleep(0.1)  # Предотвращаем загрузку CPU
 
 
 def generate_customers():
@@ -126,11 +128,10 @@ def generate_customers():
             waiting_room.put_nowait(customer)
             logger.info(f"Клиент {customer.id} зашел в парикмахерскую и ждет")
 
-            # Проверяем, есть ли спящие парикмахеры
-            for barber_id, barber in enumerate(barbers):
-                if barber.status == "sleeping":
-                    barber.event.set()  # Будим одного парикмахера
-                    break
+            # Проверяем, есть ли спящие парикмахеры и пробуждаем их
+            sleeping_barbers = [b for b in barbers if b.status == "sleeping"]
+            if sleeping_barbers:
+                sleeping_barbers[0].event.set()  # Будим первого спящего парикмахера
         except queue.Full:
             customer.set_status("left")
             with simulation_lock:
@@ -173,17 +174,6 @@ def stop_simulation():
     time.sleep(1)
 
 
-@app.route('/')
-def home():
-    hostname = socket.gethostname()
-    return render_template('index.html',
-                           hostname=hostname,
-                           barbers_count=k,
-                           waiting_seats=n,
-                           variant=v,
-                           subgroup=s)
-
-
 @app.route('/start', methods=['POST'])
 def start_simulation():
     initialize_simulation()
@@ -216,13 +206,26 @@ def get_status():
         'waiting_customers': waiting_customers,
         'customers_served': customers_served,
         'customers_lost': customers_lost,
-        'is_running': simulation_running
+        'is_running': simulation_running,
+        'barbers_count': k,
+        'waiting_seats': n,
+        'variant': v,
+        'subgroup': s
     })
 
 
 @app.route('/health')
 def health():
     return jsonify({"status": "healthy"})
+
+
+# Добавляем конфигурацию CORS для взаимодействия с клиентом
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    return response
 
 
 if __name__ == '__main__':

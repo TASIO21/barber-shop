@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Парикмахерская</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .box {
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            flex: 1;
+            min-width: 300px;
+        }
+        .barber {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .sleeping {
+            background-color: #f0f0f0;
+        }
+        .cutting {
+            background-color: #d4edda;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .start {
+            background-color: #28a745;
+            color: white;
+        }
+        .stop {
+            background-color: #dc3545;
+            color: white;
+        }
+        .refresh {
+            background-color: #007bff;
+            color: white;
+        }
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            flex: 1;
+            min-width: 100px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .status-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .running {
+            background-color: #d4edda;
+            color: #28a745;
+        }
+        .stopped {
+            background-color: #f8d7da;
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <h1>Симулятор парикмахерской</h1>
+    <p>Сервер: {{ hostname }}</p>
+
+    <div class="stats">
+        <div class="stat-box">
+            <div>Вариант</div>
+            <div class="stat-value">{{ variant }}</div>
+        </div>
+        <div class="stat-box">
+            <div>Подгруппа</div>
+            <div class="stat-value">{{ subgroup }}</div>
+        </div>
+        <div class="stat-box">
+            <div>Количество парикмахеров</div>
+            <div class="stat-value">{{ barbers_count }}</div>
+        </div>
+        <div class="stat-box">
+            <div>Стульев для ожидания</div>
+            <div class="stat-value">{{ waiting_seats }}</div>
+        </div>
+    </div>
+
+    <p>
+        Статус симуляции:
+        <span class="status-indicator {% if is_running %}running{% else %}stopped{% endif %}">
+            {% if is_running %}Запущена{% else %}Остановлена{% endif %}
+        </span>
+    </p>
+
+    <div class="controls">
+        <form action="/start" method="post">
+            <button type="submit" class="button start" {% if is_running %}disabled{% endif %}>Запустить симуляцию</button>
+        </form>
+        <form action="/stop" method="post">
+            <button type="submit" class="button stop" {% if not is_running %}disabled{% endif %}>Остановить симуляцию</button>
+        </form>
+        <form action="/" method="get">
+            <button type="submit" class="button refresh">Обновить</button>
+        </form>
+    </div>
+
+    <div class="stats">
+        <div class="stat-box">
+            <div>Клиентов в очереди</div>
+            <div class="stat-value">{{ waiting_customers }}</div>
+        </div>
+        <div class="stat-box">
+            <div>Обслужено клиентов</div>
+            <div class="stat-value">{{ customers_served }}</div>
+        </div>
+        <div class="stat-box">
+            <div>Ушло клиентов</div>
+            <div class="stat-value">{{ customers_lost }}</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="box">
+            <h2>Парикмахеры</h2>
+            {% for barber in barbers %}
+            <div class="barber {{ barber.status }}">
+                <h3>Парикмахер #{{ barber.id }}</h3>
+                <p>Статус:
+                {% if barber.status == 'sleeping' %}
+                    Спит
+                {% elif barber.status == 'cutting' %}
+                    Стрижет клиента #{{ barber.customer }}
+                {% endif %}
+                </p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        // Автоматическое обновление страницы каждые 2 секунды если симуляция запущена
+        {% if is_running %}
+        setTimeout(function() {
+            window.location.reload();
+        }, 2000);
+        {% endif %}
+    </script>
+</body>
+</html>

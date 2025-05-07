@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Проблема спящего парикмахера</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            color: #333;
+            text-align: center;
+        }
+        .info-panel {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .barber-shop {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .barbers-section, .waiting-section {
+            width: 48%;
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            min-height: 300px;
+        }
+        .barber {
+            background-color: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+        }
+        .barber-icon {
+            font-size: 24px;
+            margin-right: 15px;
+        }
+        .sleeping {
+            color: #6c757d;
+        }
+        .cutting {
+            color: #28a745;
+        }
+        .waiting-seats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .seat {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .occupied {
+            background-color: #ffecb5;
+        }
+        .empty {
+            background-color: #e9ecef;
+        }
+        .stats {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+        }
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .start-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .stop-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .status-running {
+            background-color: #28a745;
+        }
+        .status-stopped {
+            background-color: #dc3545;
+        }
+        @media (max-width: 768px) {
+            .barbers-section, .waiting-section {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Проблема спящего парикмахера</h1>
+
+        <div class="info-panel">
+            <h3>Параметры:</h3>
+            <p><strong>Вариант (v):</strong> {{ variant }}</p>
+            <p><strong>Подгруппа (s):</strong> {{ subgroup }}</p>
+            <p><strong>Количество парикмахеров (k):</strong> {{ barbers_count }}</p>
+            <p><strong>Места для ожидания (n):</strong> {{ waiting_seats }}</p>
+            <p><strong>Имя хоста контейнера:</strong> {{ hostname }}</p>
+        </div>
+
+        <div class="controls">
+            <div class="status">
+                Статус симуляции:
+                <span class="status-indicator" id="status-light"></span>
+                <span id="status-text">Остановлена</span>
+            </div>
+            <button class="start-btn" id="start-btn">Начать симуляцию</button>
+            <button class="stop-btn" id="stop-btn">Остановить симуляцию</button>
+        </div>
+
+        <div class="barber-shop">
+            <div class="barbers-section">
+                <h2>Парикмахеры</h2>
+                <div id="barbers-container">
+                    <!-- Парикмахеры будут добавлены здесь динамически -->
+                </div>
+            </div>
+
+            <div class="waiting-section">
+                <h2>Места для ожидания</h2>
+                <div class="waiting-seats" id="waiting-seats">
+                    <!-- Места ожидания будут добавлены здесь динамически -->
+                </div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <h2>Статистика</h2>
+            <p><strong>Обслужено клиентов:</strong> <span id="customers-served">0</span></p>
+            <p><strong>Потеряно клиентов:</strong> <span id="customers-lost">0</span></p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const barbersContainer = document.getElementById('barbers-container');
+            const waitingSeats = document.getElementById('waiting-seats');
+            const statusLight = document.getElementById('status-light');
+            const statusText = document.getElementById('status-text');
+            const customersServed = document.getElementById('customers-served');
+            const customersLost = document.getElementById('customers-lost');
+
+            let isRunning = false;
+            let updateInterval;
+            const totalBarbers = {{ barbers_count }};
+            const totalSeats = {{ waiting_seats }};
+
+            // Инициализация парикмахеров и мест ожидания
+            function initializeUI() {
+                barbersContainer.innerHTML = '';
+                waitingSeats.innerHTML = '';
+
+                // Создаем элементы парикмахеров
+                for (let i = 0; i < totalBarbers; i++) {
+                    const barberEl = document.createElement('div');
+                    barberEl.className = 'barber';
+                    barberEl.id = `barber-${i}`;
+                    barberEl.innerHTML = `
+                        <i class="fas fa-user barber-icon sleeping"></i>
+                        <div>
+                            <div>Парикмахер #${i}</div>
+                            <div class="status">Статус: <span class="barber-status">спит</span></div>
+                            <div class="customer">Клиент: <span class="barber-customer">нет</span></div>
+                        </div>
+                    `;
+                    barbersContainer.appendChild(barberEl);
+                }
+
+                // Создаем места для ожидания
+                for (let i = 0; i < totalSeats; i++) {
+                    const seatEl = document.createElement('div');
+                    seatEl.className = 'seat empty';
+                    seatEl.id = `seat-${i}`;
+                    seatEl.innerHTML = `<i class="fas fa-chair"></i>`;
+                    waitingSeats.appendChild(seatEl);
+                }
+            }
+
+            // Обновление интерфейса на основе статуса
+            function updateUI(data) {
+                // Обновляем парикмахеров
+                data.barbers.forEach(barber => {
+                    const barberEl = document.getElementById(`barber-${barber.id}`);
+                    if (barberEl) {
+                        const statusSpan = barberEl.querySelector('.barber-status');
+                        const customerSpan = barberEl.querySelector('.barber-customer');
+                        const barberIcon = barberEl.querySelector('.barber-icon');
+
+                        if (barber.status === 'sleeping') {
+                            statusSpan.textContent = 'спит';
+                            customerSpan.textContent = 'нет';
+                            barberIcon.className = 'fas fa-user barber-icon sleeping';
+                        } else if (barber.status === 'cutting') {
+                            statusSpan.textContent = 'стрижет';
+                            customerSpan.textContent = `#${barber.customer}`;
+                            barberIcon.className = 'fas fa-cut barber-icon cutting';
+                        }
+                    }
+                });
+
+                // Обновляем места ожидания
+                const seats = document.querySelectorAll('.seat');
+                seats.forEach((seat, index) => {
+                    if (index < data.waiting_customers) {
+                        seat.className = 'seat occupied';
+                        seat.innerHTML = `<i class="fas fa-user"></i>`;
+                    } else {
+                        seat.className = 'seat empty';
+                        seat.innerHTML = `<i class="fas fa-chair"></i>`;
+                    }
+                });
+
+                // Обновляем статистику
+                customersServed.textContent = data.customers_served;
+                customersLost.textContent = data.customers_lost;
+
+                // Обновляем индикатор статуса
+                isRunning = data.is_running;
+                if (isRunning) {
+                    statusLight.className = 'status-indicator status-running';
+                    statusText.textContent = 'Запущена';
+                } else {
+                    statusLight.className = 'status-indicator status-stopped';
+                    statusText.textContent = 'Остановлена';
+                }
+            }
+
+            // Получаем статус с сервера
+            function fetchStatus() {
+                fetch('/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        updateUI(data);
+                    })
+                    .catch(error => console.error('Ошибка при получении статуса:', error));
+            }
+
+            // Запуск симуляции
+            startBtn.addEventListener('click', function() {
+                fetch('/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Симуляция запущена:', data);
+
+                    if (!updateInterval) {
+                        updateInterval = setInterval(fetchStatus, 500);
+                    }
+
+                    fetchStatus();
+                })
+                .catch(error => console.error('Ошибка при запуске симуляции:', error));
+            });
+
+            // Остановка симуляции
+            stopBtn.addEventListener('click', function() {
+                fetch('/stop', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Симуляция остановлена:', data);
+
+                    if (updateInterval) {
+                        clearInterval(updateInterval);
+                        updateInterval = null;
+                    }
+
+                    fetchStatus();
+                })
+                .catch(error => console.error('Ошибка при остановке симуляции:', error));
+            });
+
+            // Инициализация интерфейса
+            initializeUI();
+
+            // Начальная проверка статуса
+            fetchStatus();
+        });
+    </script>
+</body>
+</html>
